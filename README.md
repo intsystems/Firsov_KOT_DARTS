@@ -1,25 +1,14 @@
-# Project template 
 
-[<img src="coverage-badge.svg">](https://github.com/intsystems/SoftwareTemplate-simplified/tree/master)
-[<img src="https://img.shields.io/badge/github%20pages-121013?style=for-the-badge&logo=github&logoColor=white">](https://intsystems.github.io/SoftwareTemplate-simplified)
-
-
+## Abstract    
+The paper examines the issue of choosing deep learning models. It suggests a method for determining neural network architectures based on their hardware needs and model complexity. Model complexity is measured by the number of parameters in the model, and hardware requirements are based on the overall latency of network operations.  
+This approach is inspired by Differentiable Architecture Search (DARTS), a technique for discovering optimal architectures. Instead of manually adjusting network structural parameters, they are treated as functions of a complexity parameter, with regularization used to control latency. This enables the generation of multiple architectures during one optimization process, allowing the selection of the best architecture.
 
 
-## Abstract
-This is a simplified template for software/libraries at Intelligent Systems.
+## Introduction
+Selecting an appropriate architecture for deep learning models is a crucial task that directly impacts model efficiency and performance. With deep learning continuing to push computational limits, researchers face the challenge of finding a balance between model complexity, accuracy, and resource consumption. Recent advances in Neural Architecture Search (NAS) techniques, such as Differentiable Architecture Search (DARTS), seek to automate this process by exploring large search spaces of possible network structures. However, these methods often struggle with high computational requirements and the need for architecture adjustments when model complexity or target hardware changes\cite{yakovlev2021neural}.
 
-The template is inherited from [Project template](https://github.com/intsystems/ProjectTemplate)
+One of the significant developments in NAS is the introduction of hardware-aware models. For example, the FBNet method \cite{Wu_2019_CVPR} incorporates latency into the architecture search process, optimizing not only for model performance but also for efficiency on specific hardware devices. This approach addresses the mismatch between FLOPs and actual hardware performance, a limitation of many prior NAS methods. %By using gradient-based techniques and Gumbel-Softmax sampling, FBNet reduces search costs dramatically, creating a family of hardware-optimized models.
 
-## Repository creation
-After repository creation (recommended way is not to fork, but use is as a template), please do the steps from [this manual](https://github.com/intsystems/.github/blob/main/profile/repository_structure_rtfm.md).
+Similarly, ProxylessNAS\cite{proxylessnas} addresses the issue of high memory consumption and computational cost during the search process by directly optimizing architectures on large-scale tasks and hardware platforms without relying on proxy tasks. This allows for direct specialization of architectures for target tasks, leading to models that are both more efficient and better suited to the given hardware constraints.
 
-## Master branch
-By desing, master branch is protected from committing.  You should make pull requests to make changes into it.
-
-## Documentation and test coverage
-Documentation and test coverage badges can be updated automatically using [github actions](.github/workflows).
-
-Initially both of these workflows are disabled (but can be run via "Actions" page).
-
-To enable them automatically on push to master branch, change corresponding "yaml" files.
+Building on these ideas, our work improves upon DARTS-CC\cite{yakovlev2021neural}, a NAS approach that uses hypernetworks to control model complexity during architecture search. Unlike other methods that search for individual architectures at different complexity levels, DARTS-CC generates multiple architectures in a single optimization process. This allows us to select the optimal architecture based on computation budget, further reducing the time and resources needed for NAS. Inspired by FBNet and ProxylessNAS, we use Gumbel-Softmax sampling to control architecture complexity and hardware efficiency, ensuring that the models produced are well-suited for deployment across different environments.
