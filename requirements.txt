@@ -1,0 +1,9 @@
+graphviz==0.17
+ipython==7.25.0
+matplotlib==3.4.2
+numpy==1.21.1
+tensorboardX==2.4
+torch==1.8.1
+torchvision==0.9.1
+configobj==5.0.6
+tqdm==4.61.0
