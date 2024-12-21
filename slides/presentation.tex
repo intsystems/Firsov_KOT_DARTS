@@ -11,7 +11,7 @@
 
 % Title Page Information
 \title{Neural architecture search with target hardware control}
-\author{Firsov Sergey \\ Supervisor: Bakhteev Oleg}
+\author{Firsov Sergey \\ Supervisor: Oleg Bakhteev, PhD}
 \institute{Moscow Institute of Physics and Technology}
 \date{2024}
 
@@ -32,6 +32,7 @@
         \item \textbf{Vast Search Space:} The number of possible architectures grows exponentially with model complexity.
         \item \textbf{Trade-offs:} Balancing accuracy, model complexity, and hardware efficiency.
         \item \textbf{Resource Constraints:} Models must perform well within predefined latency, memory, or energy limits.
+        \item \textbf{Multiple result:} Getting architectures as a function of complexity, thereby having multiple architectures in one answer.
     \end{itemize}
     
 \end{itemize}
@@ -69,13 +70,16 @@ Exhaustive search for optimal architectures using:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}{Architecture of solution}
+
+\includegraphics[width=1\linewidth]{picture.png}
+
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}{Step 1: Complexity-Aware Architecture Representation}
 \begin{itemize}
-    \item Architectural parameters \(\boldsymbol{\alpha}\) depend on complexity parameter \(\lambda\):
+    \item Architectural parameters \(\boldsymbol{\alpha}\) - functions from complexity parameter \(\lambda\) to architectural space \(  \mathcal{A} \):
     \[
     \boldsymbol{\alpha}: \lambda \to \mathcal{A}.
     \]
@@ -93,7 +97,7 @@ Exhaustive search for optimal architectures using:
     \boldsymbol{S} \in \Delta^{k-1}.
     \]
     This makes complexity management more flexible for different types of operations.  
-    \item \(\Delta^{k-1}\): \((k-1)\)-dimensional simplex, where \(k\) is the number of operations.
+    \item \(\Delta^{k-1}\): \((k-1)\)-dimensional simplex, where \(k\) is the number of operations: now we have a different regularization coefficient for each operation.
     \item Sampling via Gumbel-Softmax enables differentiable selection of operations:
     \[
     \boldsymbol{S} \sim \text{GumbelSoftmax}(\boldsymbol{\theta}).
@@ -108,7 +112,7 @@ Exhaustive search for optimal architectures using:
     \item \textbf{Latency-Aware Optimization:}  
     Introduce a term in the loss function to account for operation latency on target hardware.
     \[
-    \text{Loss} = L + \kappa \cdot \text{Latency}(\boldsymbol{\alpha}),
+    \text{Loss} = L + \kappa \cdot \text{Latency}(\boldsymbol{\alpha(S)}),
     \]
     where \(\kappa\) is a regularization coefficient.
     \item \textbf{Purpose:}  
