@@ -167,13 +167,13 @@ def train(train_loader, valid_loader, model, epoch, writer,  config, logger):
             prec1 = utils.accuracy(
                 logits, trn_y)[0]
             top1.update(prec1.item(), N)
+            total_params = sum(p.numel() for p in model.parameters())
             logger.info(
                 "Train: [{:2d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
-                "Acc@(1) {top1.avg:.1%}".format(
-                    epoch+1, config.epochs, step, len(train_loader)-1, losses=losses,
-                    top1=top1))
-            model.writer_callback(writer, epoch, cur_step)
-
+                "Acc@(1) {top1.avg:.1%} | Params: {total_params:,}".format(
+                    epoch+1, config.epochs, step, len(train_loader)-1, 
+                    losses=losses, top1=top1, total_params=total_params)
+            )
         
         
             writer.add_scalar('train/loss', loss.item(), cur_step)

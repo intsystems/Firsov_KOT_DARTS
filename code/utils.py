@@ -12,6 +12,42 @@ import torch as t
 from configobj import ConfigObj
 
 
+def get_latency_table(mode):
+    if mode == 'computer':
+        return {
+            'max_pool_3x3': 1.0,
+            'avg_pool_3x3': 1.0,
+            'skip_connect': 1.0,
+            'sep_conv_3x3': 1.0,
+            'sep_conv_5x5': 1.0,
+            'dil_conv_3x3': 1.0,
+            'dil_conv_5x5': 1.0,
+            'none': 1.0,
+        }
+    elif mode == 'diff_conv':
+        return {
+            'max_pool_3x3': 1.0,
+            'avg_pool_3x3': 1.0,
+            'skip_connect': 1.0,
+            'sep_conv_3x3': 1.5,
+            'sep_conv_5x5': 1.5,
+            'dil_conv_3x3': 1.5,
+            'dil_conv_5x5': 1.5,
+            'none': 1.0,
+        }
+    elif mode == 'diff_pool':
+        return {
+            'max_pool_3x3': 1.5,
+            'avg_pool_3x3': 1.5,
+            'skip_connect': 1.0,
+            'sep_conv_3x3': 1.0,
+            'sep_conv_5x5': 1.0,
+            'dil_conv_3x3': 1.0,
+            'dil_conv_5x5': 1.0,
+            'none': 1.0,
+        }
+    else:
+        raise ValueError("Unknown latency mode: {}".format(mode))
 
           
 

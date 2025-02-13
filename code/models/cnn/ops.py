@@ -192,8 +192,9 @@ class MixedOp(nn.Module):
             op = OPS[primitive](C, stride, affine=False)
             if not isinstance(op, Identity) and drop>0.0:
                op = nn.Sequential(op, DropPath_(drop)  )
-
+            op.name = primitive
             self._ops.append(op)
+            
 
     def forward(self, x, weights):
         """

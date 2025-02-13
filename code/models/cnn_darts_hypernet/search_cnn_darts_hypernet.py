@@ -11,7 +11,7 @@ from visualize import plot
 import genotypes as gt
 import logging
 import numpy as np
-
+from utils import get_latency_table
 import torch.nn.init as init
 
 class PWNet(nn.Module):
@@ -147,7 +147,13 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         self.lam_log_min = float(kwargs['hypernetwork']['log10_lambda_min']) # логарифм минимально допустимой лямбды
         self.lam_log_max = float(kwargs['hypernetwork']['log10_lambda_max']) # логарифм максимально допустимой лямбды
         
-        
+        if 'latency' in kwargs:
+            self.latency_mode = kwargs['latency']['mode']
+            self.latency_kappa = float(kwargs['latency']['kappa'])
+        else:
+            self.latency_mode = 'computer'
+            self.latency_kappa = 0.001
+
         self.kernel_num = int(self.lam_log_max - self.lam_log_min) + 1
         
         self.init_alphas(kwargs)
@@ -262,6 +268,7 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
     def hyperloss(self, X, y, lam):
         logits = self.forward(X, lam)
         penalty = 0
+        latency_loss = 0.0
         for id, cell in enumerate(self.net.cells):
             # можно не пробегать несколько раз, т.к. клетки одинаковы (С точностью до normal и reduce)            
             
@@ -277,19 +284,22 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
                 for mixed_op, weights in zip(edges, w_list):
                     for op, w in zip(mixed_op._ops, weights):
                         for param in op.parameters():
-                            penalty += w*np.prod(param.shape)#(torch.norm(param)**2)            
-            #penalty += lam_[0,0] * (torch.norm(self.net.linear.weight)**2 + torch.norm(self.net.linear.bias)**2)
-            #penalty += (1.0-lam_[0,0]) * (torch.norm(self.net.linear2.weight)**2 + torch.norm(self.net.linear2.bias)**2)
-            
+                            penalty += w*np.prod(param.shape)#(torch.norm(param)**2)
+                        op_name = op.name if hasattr(op, 'name') else str(op.__class__.__name__).lower()
+                        if 'zero' in op_name:
+                            op_name = 'none'
+                        latency_loss += w * get_latency_table(self.latency_mode)[op_name]
+
+        total_task_loss = self.criterion(logits, y)
+        complexity_penalty = penalty * lam[0, 0]
+        latency_penalty = self.latency_kappa * latency_loss
+        total_loss = total_task_loss + complexity_penalty + latency_penalty
+        print("Task loss: {:.4f}, Complexity penalty: {:.4f}, Latency loss: {:.4f}".format(
+            total_task_loss.item(), complexity_penalty, latency_penalty))
+    
+        return total_loss
 
         return self.criterion(logits, y)   + penalty * lam[0,0] 
-        
-        #res =  (1.0 - lam[0,0]) * self.criterion(logits, y)   + penalty * lam[0,0]  * 0.0001
-        
-        #print (lam, res)
-        #return self.criterion(logits, y)
-        return res
-    
         
 
     def train_step(self, trn_X, trn_y, val_X, val_y, lam = None):        
