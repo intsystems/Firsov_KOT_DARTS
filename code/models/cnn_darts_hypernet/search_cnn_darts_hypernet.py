@@ -159,28 +159,22 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         self.init_alphas(kwargs)
         self.net = SearchCNNWithHyperNet(self.kernel_num, primitives, C_in, C, n_classes, n_layers,
                              n_nodes, stem_multiplier)
-
-        # weights optimizer
-        self.w_optim = torch.optim.SGD(self.weights(), float(subcfg['optim']['w_lr']), momentum=float(subcfg['optim']['w_momentum']),
-                                       weight_decay=float(subcfg['optim']['w_weight_decay']))
-        # alphas optimizer
-        self.alpha_optim = torch.optim.Adam(self.alphas(), float(subcfg['optim']['alpha_lr']), betas=(0.5, 0.999),
-                                            weight_decay=float(subcfg['optim']['alpha_weight_decay']))
+        ##########
+        all_params = list(self.weights()) + list(self.alphas())
+        self.optimizer = torch.optim.Adam(all_params,
+                                          lr=float(subcfg['optim']['w_lr']),
+                                          weight_decay=float(subcfg['optim']['w_weight_decay']))
 
         self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.w_optim, int(kwargs['epochs']), eta_min=float(subcfg['optim']['w_lr_min']))
+            self.optimizer, int(kwargs['epochs']), eta_min=float(subcfg['optim']['w_lr_min']))
 
-        self.simple_alpha_update = int(
-            subcfg['optim']['simple_alpha_update']) != 0
-        
+        self.simple_alpha_update = int(subcfg['optim']['simple_alpha_update']) != 0
         self.w_grad_clip = float(subcfg['optim']['w_grad_clip'])
-        
         self.lam_sample_num = int(kwargs['hypernetwork']['lambda sample num'])
-        if not self.simple_alpha_update and self.lam_sample_num>1:
+        if not self.simple_alpha_update and self.lam_sample_num > 1:
             raise NotImplementedError('Bad sample num with advanced alpha optimization')
-            
-        self.architect = HypernetArchitect(self, float(
-            kwargs['darts']['optim']['w_momentum']), float(kwargs['darts']['optim']['w_weight_decay'])) # делаем подмену Architect
+
+        ##########
         self.cur_e = 0
         self.epochs = int(kwargs['epochs'])
         
@@ -302,46 +296,18 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         return self.criterion(logits, y)   + penalty * lam[0,0] 
         
 
-    def train_step(self, trn_X, trn_y, val_X, val_y, lam = None):        
-        loss = 0.0
-        arch_loss = 0.0
-        lr = self.lr_scheduler.get_last_lr()[0]            
-        
-        self.alpha_optim.zero_grad()
+    def train_step(self, trn_X, trn_y, val_X, val_y, lam=None):
+        self.optimizer.zero_grad()
+        loss_total = 0.0
         for _ in range(self.lam_sample_num):
-            # генерация случайной лямбды
             if lam is None:
-                lam = torch.tensor(
-                    10**np.random.uniform(low=self.lam_log_min, high=self.lam_log_max)).view(1, 1).to(self.device)    
-            #lam =  torch.tensor(np.random.uniform(low=0.0, high=1.0)).view(1, 1).to(self.device) 
-            #lam1 = np.random.uniform(low=0.0, high=1.0)  #np.random.uniform(low=self.lam_log_min, high=self.lam_log_max)
-            #if lam1>0.5: #(lam1 - self.lam_log_min)/(self.lam_log_max - self.lam_log_min)>0.5:
-            #    lam2 = 1.0 #self.lam_log_max
-            #else:
-            #    lam2 = 0.0 #self.lam_log_min
-            #w1 = (self.cur_e + 1)/ self.epochs
-            #w2 = (self.epochs - self.cur_e - 1)/ self.epochs
-            #lam = (lam1 * w1 + lam2 * w2)/(w1+w2)
-            ##lam = torch.tensor(10**lam).view(1, 1).to(self.device) 
-            #lam = torch.tensor(lam).view(1, 1).to(self.device)
-            if self.simple_alpha_update:
-                arch_loss += self.hyperloss(val_X, val_y, lam)/self.lam_sample_num                
-            else:                
-                self.architect.unrolled_backward(
-                    trn_X, trn_y, val_X, val_y, lr, self.w_optim, lam)
-        if self.simple_alpha_update:
-            arch_loss.backward()
-        self.alpha_optim.step()
-        self.w_optim.zero_grad()
-        for _ in range(self.lam_sample_num):
-            # phase 1. child network step (w)        
-            loss += self.loss(trn_X, trn_y, lam)/self.lam_sample_num
-        loss.backward()
-        # gradient clipping
-        nn.utils.clip_grad_norm_(self.weights(), self.w_grad_clip)
-
-        self.w_optim.step()
-        return loss
+                lam = torch.tensor(10**np.random.uniform(low=self.lam_log_min, high=self.lam_log_max)).view(1, 1).to(self.device)
+            loss = self.hyperloss(trn_X, trn_y, lam)
+            loss_total += loss / self.lam_sample_num
+        loss_total.backward()
+        nn.utils.clip_grad_norm_(self.optimizer.param_groups[0]['params'], self.w_grad_clip)
+        self.optimizer.step()
+        return loss_total
 
     def new_epoch(self, e, w, l):
         SearchCNNController.new_epoch(self, e,w,l)
