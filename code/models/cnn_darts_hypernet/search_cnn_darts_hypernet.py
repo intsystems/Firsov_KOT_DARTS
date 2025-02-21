@@ -160,20 +160,25 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         self.net = SearchCNNWithHyperNet(self.kernel_num, primitives, C_in, C, n_classes, n_layers,
                              n_nodes, stem_multiplier)
         ##########
-        all_params = list(self.weights()) + list(self.alphas())
-        self.optimizer = torch.optim.Adam(all_params,
-                                          lr=float(subcfg['optim']['w_lr']),
-                                          weight_decay=float(subcfg['optim']['w_weight_decay']))
-
+        # return of 2 optimizers
+        self.w_optim = torch.optim.SGD(self.weights(), 
+                                         lr=float(subcfg['optim']['w_lr']), 
+                                         momentum=float(subcfg['optim']['w_momentum']),
+                                         weight_decay=float(subcfg['optim']['w_weight_decay']))
+        self.alpha_optim = torch.optim.Adam(self.alphas(), 
+                                             lr=float(subcfg['optim']['alpha_lr']), 
+                                             betas=(0.5, 0.999),
+                                             weight_decay=float(subcfg['optim']['alpha_weight_decay']))
+                                             
         self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, int(kwargs['epochs']), eta_min=float(subcfg['optim']['w_lr_min']))
+            self.w_optim, int(kwargs['epochs']), eta_min=float(subcfg['optim']['w_lr_min']))
 
         self.simple_alpha_update = int(subcfg['optim']['simple_alpha_update']) != 0
         self.w_grad_clip = float(subcfg['optim']['w_grad_clip'])
         self.lam_sample_num = int(kwargs['hypernetwork']['lambda sample num'])
         if not self.simple_alpha_update and self.lam_sample_num > 1:
             raise NotImplementedError('Bad sample num with advanced alpha optimization')
-
+            
         ##########
         self.cur_e = 0
         self.epochs = int(kwargs['epochs'])
@@ -295,20 +300,27 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
 
         return self.criterion(logits, y)   + penalty * lam[0,0] 
         
-
+##################################
     def train_step(self, trn_X, trn_y, val_X, val_y, lam=None):
-        self.optimizer.zero_grad()
+        self.w_optim.zero_grad()
+        self.alpha_optim.zero_grad()
+    
         loss_total = 0.0
         for _ in range(self.lam_sample_num):
             if lam is None:
-                lam = torch.tensor(10**np.random.uniform(low=self.lam_log_min, high=self.lam_log_max)).view(1, 1).to(self.device)
-            loss = self.hyperloss(trn_X, trn_y, lam)
-            loss_total += loss / self.lam_sample_num
+                lam = torch.tensor(10**np.random.uniform(low=self.lam_log_min, 
+                                                           high=self.lam_log_max)).view(1, 1).to(self.device)
+            loss = self.hyperloss(trn_X, trn_y, lam) / self.lam_sample_num
+            loss_total += loss
+        
         loss_total.backward()
-        nn.utils.clip_grad_norm_(self.optimizer.param_groups[0]['params'], self.w_grad_clip)
-        self.optimizer.step()
+        nn.utils.clip_grad_norm_(list(self.weights()), self.w_grad_clip)
+    
+        self.w_optim.step()
+        self.alpha_optim.step()
+    
         return loss_total
-
+#####################################
     def new_epoch(self, e, w, l):
         SearchCNNController.new_epoch(self, e,w,l)
         self.cur_e = e
