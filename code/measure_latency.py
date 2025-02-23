@@ -14,8 +14,8 @@ primitives = ['max_pool_3x3', 'avg_pool_3x3', 'skip_connect',
               'sep_conv_3x3', 'sep_conv_5x5', 'dil_conv_3x3', 'dil_conv_5x5']
 
 latency_results = {}
-num_warmup = 10
-num_iters = 100
+num_warmup = 10000
+num_iters = 100000
 
 for prim in primitives:
     op = ops.OPS[prim](32, 1, affine=False).to(device)
