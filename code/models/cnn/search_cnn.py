@@ -352,7 +352,7 @@ class SearchCNNController(nn.Module):
                 alpha = F.softmax(alpha)
                 w_normal.append((torch.argmax(alpha, 1).cpu().detach().numpy()).tolist())    
         else:
-            raise NotImplemntedError('Unknown genotype extraction mode:'+mode)
+            raise NotImplementedError('Unknown genotype extraction mode:'+mode)
         return w_reduce, w_normal
 
 

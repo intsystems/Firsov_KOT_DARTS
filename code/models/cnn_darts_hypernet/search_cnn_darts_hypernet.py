@@ -13,7 +13,43 @@ import logging
 import numpy as np
 from utils import get_latency_table
 import torch.nn.init as init
+SIMPLEX_D = 3
 
+class Hypernet2(nn.Module):
+    def __init__(self, size, kernel_num):  
+        nn.Module.__init__(self)    
+        self.size = size
+        if isinstance(size, int):
+            self.total_size = size
+        else:
+            self.total_size = np.prod(size)
+        
+        self.arch_references = nn.Parameter(torch.randn(kernel_num, self.total_size))
+        self.pivots = nn.Parameter(torch.randn(kernel_num, SIMPLEX_D))
+        
+        
+                    
+    def forward(self, lam): 
+        dists = torch.softmax(((lam - self.pivots)**2).sum(1), 0)
+        result = dists.view(1, -1) @ self.arch_references
+        if isinstance(self.size, int):
+            return result
+            
+        return result.view(*self.size)
+        
+        
+class HyperLinear(nn.Module):
+    def __init__(self, size, kernel_num):
+        nn.Module.__init__(self)
+        self.weight = Hypernet2(size, kernel_num)
+        self.bias = Hypernet2(size[1], kernel_num)
+    
+    def forward(self, x, lam):
+        weight = self.weight(lam).float()
+        bias = self.bias(lam).float()
+        res =  torch.matmul(x, weight) + bias         
+        return res
+        
 class PWNet(nn.Module):
     def __init__(self, size, kernel_num,  init_ = 'random'):    
         nn.Module.__init__(self)
@@ -48,10 +84,10 @@ class PWNet(nn.Module):
         self.pivots = nn.Parameter(torch.tensor(np.linspace(0, 1,kernel_num)), requires_grad=True)
         
             
-    def forward(self, lam):           
+    def forward(self, lam):   
         lam_ = lam * 0.99999
         left = torch.floor(lam_*(self.kernel_num-1)).long() 
-        right = left + 1
+        right = left + 1      
         dist = (self.pivots[right]-lam_)/(self.pivots[right]-self.pivots[left])
         res = self.const[left] * (dist) + (1.0-dist) * self.const[right]
         
@@ -87,14 +123,13 @@ class HyperNet(nn.Module):
         self.out_size2 = out_size2
         out_size = out_size1 * out_size2 # выход MLP - вектор, поэтому приводим матрицу к вектору
         layers = []
-        in_ = 1 # исходная входная размерность
-        for l in range(hidden_layer_num):
-            layers.append(PWNet((in_, hidden_size), kernel_num))
-            layers.append(nn.ReLU())
-            in_ = hidden_size
-        layers.append(PWNet((in_, out_size), kernel_num))
-        #layers.append(nn.Linear(in_, out_size))
-        self.model = nn.Sequential(*layers)
+        
+                
+        if hidden_layer_num > 0:
+            raise NotImplementedError('deprecated?')
+        
+        self.model = nn.Sequential(Hypernet2(out_size, kernel_num))
+       
 
     def forward(self, x):
         # x --- одномерный вектор (задающий сложность)        
@@ -106,7 +141,8 @@ class HyperNet(nn.Module):
 class SearchCNNWithHyperNet(SearchCNN):
     def __init__(self, kernel_num, primitives,  C_in, C, n_classes, n_layers, n_nodes=4, stem_multiplier=3):
         SearchCNN.__init__(self, primitives,  C_in, C, n_classes, n_layers, n_nodes, stem_multiplier)
-        self.linear = PWLinear((self.linear.weight.shape[1], self.linear.weight.shape[0]), kernel_num)
+        #self.linear = Hypernet2(, kernel_num)
+        self.linear = HyperLinear((self.linear.weight.shape[1], self.linear.weight.shape[0]), kernel_num)
         
         
     
@@ -255,13 +291,7 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         return self.criterion(logits, y)
 
     def norm_lam(self, lam):  
-        #print (lam)
-        #return lam #oleg
-        max_ = self.lam_log_max
-        min_ = self.lam_log_min
-        lam_ = torch.log10(lam)
-        #print ((lam_ - min_)/(max_-min_))        
-        return (lam_ - min_)/(max_-min_)
+        return lam
     
     
     def hyperloss(self, X, y, lam):
@@ -290,8 +320,11 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
                         latency_loss += w * get_latency_table(self.latency_mode)[op_name]
 
         total_task_loss = self.criterion(logits, y)
-        complexity_penalty = penalty * lam[0, 0]
-        latency_penalty = self.latency_kappa * latency_loss
+        print ('TODO FIX')
+        complexity_penalty = 0.0
+        latency_penalty = 0.0
+        #complexity_penalty = penalty * lam[0, 0]
+        #latency_penalty = self.latency_kappa * latency_loss
         total_loss = total_task_loss + complexity_penalty + latency_penalty
         print("Task loss: {:.4f}, Complexity penalty: {:.4f}, Latency loss: {:.4f}".format(
             total_task_loss.item(), complexity_penalty, latency_penalty))
@@ -308,8 +341,9 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         loss_total = 0.0
         for _ in range(self.lam_sample_num):
             if lam is None:
-                lam = torch.tensor(10**np.random.uniform(low=self.lam_log_min, 
-                                                           high=self.lam_log_max)).view(1, 1).to(self.device)
+                k = torch.distributions.Exponential(1.0).sample([SIMPLEX_D]).to(self.device)
+                lam = k/sum(k).to(self.device)
+                
             loss = self.hyperloss(trn_X, trn_y, lam) / self.lam_sample_num
             loss_total += loss
         
@@ -345,7 +379,7 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
                 alpha = alpha(lam)
                 w_normal.append((torch.argmax(alpha, 1).cpu().detach().numpy()).tolist())    
         else:
-            raise NotImplemntedError('Unknown genotype extraction mode:'+mode)
+            raise NotImplementedError('Unknown genotype extraction mode:'+mode)
         return w_reduce, w_normal
                     
                 
