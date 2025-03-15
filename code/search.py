@@ -9,8 +9,8 @@ import utils
 from importlib import import_module
 from utils import Config
 from tqdm import tqdm
-def main():    
-    config = Config(sys.argv[1])
+def main(path_to_cfg):    
+    config = Config(path_to_cfg)
     device = config.device
      
 
@@ -228,4 +228,4 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
 
 if __name__ == "__main__":
-    main()
+    main(path_to_cfg = 'configs/my_configs/big_kappa.cfg' )

@@ -180,6 +180,11 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
 
         self.delta_t = float(subcfg['delta'])
         primitives = self.get_primitives(kwargs)
+        global SIMPLEX_D 
+        SIMPLEX_D = len(primitives)
+        self.connect_dict = {elem: i for i, elem in enumerate(primitives)}
+        print(self.connect_dict)
+
         self.lam_log_min = float(kwargs['hypernetwork']['log10_lambda_min']) # логарифм минимально допустимой лямбды
         self.lam_log_max = float(kwargs['hypernetwork']['log10_lambda_max']) # логарифм максимально допустимой лямбды
         
@@ -317,22 +322,17 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
                         op_name = op.name if hasattr(op, 'name') else str(op.__class__.__name__).lower()
                         if 'zero' in op_name:
                             op_name = 'none'
-                        latency_loss += w * get_latency_table(self.latency_mode)[op_name]
+                        latency_loss += w * lam[self.connect_dict[op_name]]
 
         total_task_loss = self.criterion(logits, y)
-        print ('TODO FIX')
-        complexity_penalty = 0.0
+        #print ('TODO FIX ?')
+
         latency_penalty = 0.0
-        #complexity_penalty = penalty * lam[0, 0]
-        #latency_penalty = self.latency_kappa * latency_loss
-        total_loss = total_task_loss + complexity_penalty + latency_penalty
-        print("Task loss: {:.4f}, Complexity penalty: {:.4f}, Latency loss: {:.4f}".format(
-            total_task_loss.item(), complexity_penalty, latency_penalty))
+        latency_penalty = self.latency_kappa * latency_loss
+        total_loss = total_task_loss + latency_penalty
+        print("Task loss: {:.4f}, Latency loss: {:.4f}".format(total_task_loss.item(), latency_penalty))
     
         return total_loss
-
-        return self.criterion(logits, y)   + penalty * lam[0,0] 
-        
 ##################################
     def train_step(self, trn_X, trn_y, val_X, val_y, lam=None):
         self.w_optim.zero_grad()
@@ -343,7 +343,10 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
             if lam is None:
                 k = torch.distributions.Exponential(1.0).sample([SIMPLEX_D]).to(self.device)
                 lam = k/sum(k).to(self.device)
-                
+                # print(SIMPLEX_D)
+                # print(lam)
+                # print(lam.shape)
+                # print()
             loss = self.hyperloss(trn_X, trn_y, lam) / self.lam_sample_num
             loss_total += loss
         
