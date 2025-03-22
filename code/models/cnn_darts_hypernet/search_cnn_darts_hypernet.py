@@ -184,6 +184,7 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         SIMPLEX_D = len(primitives)
         self.connect_dict = {elem: i for i, elem in enumerate(primitives)}
         print(self.connect_dict)
+        # self.logger = None
 
         self.lam_log_min = float(kwargs['hypernetwork']['log10_lambda_min']) # логарифм минимально допустимой лямбды
         self.lam_log_max = float(kwargs['hypernetwork']['log10_lambda_max']) # логарифм максимально допустимой лямбды

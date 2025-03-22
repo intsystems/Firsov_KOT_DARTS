@@ -50,6 +50,7 @@ def main(path_to_cfg):
         model_params = config.__dict__
         model_params['seed'] = seed
         model = controller_cls(**model_params)
+        # model.log = logger
         model = model.to(device)    
         # split data to train/validation
         n_train = len(train_data)

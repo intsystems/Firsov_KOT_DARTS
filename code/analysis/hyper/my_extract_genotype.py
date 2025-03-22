@@ -29,12 +29,13 @@ if __name__=='__main__':
 	[ 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ],
 	[ 1 , 1 , 0.1 , 1 , 1 , 1 , 1 , 0.1 ],
 	]
+      # {'max_pool_3x3': 0, 'avg_pool_3x3': 1, 'skip_connect': 2, 'sep_conv_3x3': 3, 'sep_conv_5x5': 4, 'dil_conv_3x3': 5, 'dil_conv_5x5': 6, 'none': 7}
 	# {'max_pool_3x3': 0, 'avg_pool_3x3': 1, 'skip_connect': 2, 'sep_conv_3x3': 3, 'sep_conv_5x5': 4, 'dil_conv_3x3': 5, 'dil_conv_5x5': 6, 'none': 7}
 	for i, l in enumerate(l_vectors):
 		lam = np.array(l)/sum(l)
 		#print ('args: <path to config> <path to checkpoint> <mode> <normzlized lambda> <path to save>')
             
-		path_to_cfg =  './configs/my_configs/big_kappa.cfg'#'./configs/my_configs/my_comp.cfg'  
+		path_to_cfg =  './configs/my_configs/big_kappa.cfg'  #'./configs/my_configs/big_kappa.cfg'#'./configs/my_configs/my_comp.cfg'  
 		path_to_checkpoint =  './searchs/my_high_conv/checkpoint_0_9.ckp' # './searchs/my_normal_computer/checkpoint_0_9.ckp'
 		path_to_save = './searchs/my_high_conv/genotype' # './searchs/my_normal_computer/genotype'
 		config = configobj.ConfigObj(path_to_cfg)
