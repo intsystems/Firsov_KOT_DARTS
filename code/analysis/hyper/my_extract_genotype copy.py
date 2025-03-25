@@ -6,19 +6,26 @@ sys.path.append('.')
 from models.cnn_darts_hypernet.search_cnn_darts_hypernet import SearchCNNControllerWithHyperNet
 import json 
 import numpy as np 
-
 def calc_param_number(model, g_reduce, g_normal):
     penalty = 0
-    for id, cell in enumerate(model.net.cells):
-            weights = g_reduce if cell.reduction else g_normal
-            
-            for edges, w_list in zip(cell.dag, weights):
-                for mixed_op, weight in zip(edges, w_list):
-                    op = mixed_op._ops[weight]
+    stemm_param = 0
+    cls_param = 0
+    for cell in model.net.cells:
+        weights = g_reduce if cell.reduction else g_normal
+        for edges, op_indices in zip(cell.dag, weights):
+            for mixed_op, op_index in zip(edges, op_indices):
+                op = mixed_op._ops[op_index]
+                for param in op.parameters():
+                    penalty += np.prod(param.shape)
+                    
+    for param in model.net.stem.parameters():
+        stemm_param += np.prod(param.shape)
+    for param in model.net.linear.parameters():
+        cls_param += np.prod(param.shape)
+    
+    return stemm_param, penalty, cls_param
 
-                    for param in op.parameters():
-                        penalty += np.prod(param.shape) 
-    return penalty    
+
     
 if __name__=='__main__':
 	l_vectors = [
@@ -39,26 +46,16 @@ if __name__=='__main__':
 		lam = np.array(l)/sum(l)
 		#print ('args: <path to config> <path to checkpoint> <mode> <normzlized lambda> <path to save>')
             
-		
-        # kappa_10
-		path_to_cfg =  './configs/my_configs/kappa_10.cfg'
-		path_to_checkpoint =  './searchs/kappa_10/checkpoint_0_9.ckp'
-		path_to_save = './searchs/kappa_10/genotype'
-            
-			# kappa_10
-		# path_to_cfg =  './configs/my_configs/kappa_100.cfg'
-		# path_to_checkpoint =  './searchs/kappa_100/checkpoint_0_9.ckp'
-		# path_to_save = './searchs/kappa_100/genotype'
-        # kappa_5 --- проблемы
-		# path_to_cfg =  './configs/my_configs/kappa_5.cfg'
-		# path_to_checkpoint =  './searchs/kappa_5/checkpoint_0_9.ckp'
-		# path_to_save = './searchs/kappa_5/genotype' 
+		# kappa_5 --- проблемы
+		path_to_cfg =  './configs/my_configs/kappa_5.cfg'
+		path_to_checkpoint =  './searchs/kappa_5/checkpoint_0_9.ckp'
+		path_to_save = './searchs/kappa_5/genotype' 
         # kappa_5_again
 		# path_to_cfg =  './configs/my_configs/kappa_5.cfg'
 		# path_to_checkpoint =  './searchs/kappa_5_again/checkpoint_0_9.ckp'
 		# path_to_save = './searchs/kappa_5_again/genotype'
             
-		# # kappa_3 что-то с пулингами
+		# kappa_3 что-то с пулингами
 		# path_to_cfg =  './configs/my_configs/kappa_3.cfg'
 		# path_to_checkpoint =  './searchs/kappa_3/checkpoint_0_9.ckp'
 		# path_to_save = './searchs/kappa_3/genotype'
@@ -88,6 +85,6 @@ if __name__=='__main__':
 		red, norm = model.genotype(lam_tensor, mode='simple')
 		print(text)
 		print(lam)
-		print ('param num', calc_param_number(model, red, norm), '\n')
+		print ('stemm_param, penalty, cls_param num', calc_param_number(model, red, norm), '\n')
 		with open(path_to_save + f'_{i}_' + '.json' , 'w') as out:
 			out.write(json.dumps([red,norm]))		

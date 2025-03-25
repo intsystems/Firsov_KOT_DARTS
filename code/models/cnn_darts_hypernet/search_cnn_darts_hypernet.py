@@ -189,12 +189,7 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         self.lam_log_min = float(kwargs['hypernetwork']['log10_lambda_min']) # логарифм минимально допустимой лямбды
         self.lam_log_max = float(kwargs['hypernetwork']['log10_lambda_max']) # логарифм максимально допустимой лямбды
         
-        if 'latency' in kwargs:
-            self.latency_mode = kwargs['latency']['mode']
-            self.latency_kappa = float(kwargs['latency']['kappa'])
-        else:
-            self.latency_mode = 'computer'
-            self.latency_kappa = 0.001
+        self.latency_kappa = float(kwargs['latency']['kappa'])
 
         self.kernel_num = int(self.lam_log_max - self.lam_log_min) + 1
         
@@ -385,9 +380,3 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         else:
             raise NotImplementedError('Unknown genotype extraction mode:'+mode)
         return w_reduce, w_normal
-                    
-                
-            
-            
-        
-        

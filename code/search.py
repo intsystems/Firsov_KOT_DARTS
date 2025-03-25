@@ -229,4 +229,4 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
 
 if __name__ == "__main__":
-    main(path_to_cfg = 'configs/my_configs/big_kappa.cfg' )
+    main(path_to_cfg = 'configs/my_configs/kappa_100.cfg' )
