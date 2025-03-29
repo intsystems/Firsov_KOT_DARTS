@@ -44,11 +44,26 @@ if __name__=='__main__':
 		path_to_cfg =  './configs/my_configs/kappa_10.cfg'
 		path_to_checkpoint =  './searchs/kappa_10/checkpoint_0_9.ckp'
 		path_to_save = './searchs/kappa_10/genotype'
-            
-			# kappa_10
-		# path_to_cfg =  './configs/my_configs/kappa_100.cfg'
-		# path_to_checkpoint =  './searchs/kappa_100/checkpoint_0_9.ckp'
-		# path_to_save = './searchs/kappa_100/genotype'
+        # kappa_50
+		path_to_cfg =  './configs/my_configs/kappa_50.cfg'
+		path_to_checkpoint =  './searchs/kappa_50/checkpoint_0_9.ckp'
+		path_to_save = './searchs/kappa_50/genotype'
+		# kappa_100
+		path_to_cfg =  './configs/my_configs/kappa_100.cfg'
+		path_to_checkpoint =  './searchs/kappa_100/checkpoint_0_9.ckp'
+		path_to_save = './searchs/kappa_100/genotype'
+        # kappa_1000
+		# path_to_cfg =  './configs/my_configs/kappa_1000.cfg'
+		# path_to_checkpoint =  './searchs/kappa_1000/checkpoint_0_9.ckp'
+		# path_to_save = './searchs/kappa_1000/genotype'
+        # kappa_10000
+		# path_to_cfg =  './configs/my_configs/kappa_10000.cfg'
+		# path_to_checkpoint =  './searchs/kappa_10000/checkpoint_0_9.ckp'
+		# path_to_save = './searchs/kappa_10000/genotype'
+            # kappa_100000
+		# path_to_cfg =  './configs/my_configs/kappa_100000.cfg'
+		# path_to_checkpoint =  './searchs/kappa_100000/checkpoint_0_9.ckp'
+		# path_to_save = './searchs/kappa_100000/genotype'
         # kappa_5 --- проблемы
 		# path_to_cfg =  './configs/my_configs/kappa_5.cfg'
 		# path_to_checkpoint =  './searchs/kappa_5/checkpoint_0_9.ckp'

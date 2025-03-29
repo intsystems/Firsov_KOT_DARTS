@@ -355,6 +355,7 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         return loss_total
 #####################################
     def new_epoch(self, e, w, l):
+        print(f"[Epoch {e}] Текущая температура (gumbel) = {self.t}")
         SearchCNNController.new_epoch(self, e,w,l)
         self.cur_e = e
         

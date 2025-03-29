@@ -3,6 +3,7 @@ import os
 import torch
 import torch.nn as nn
 import numpy as np
+np.random.seed(0)
 import sys
 from tensorboardX import SummaryWriter
 import utils
@@ -229,4 +230,4 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
 
 if __name__ == "__main__":
-    main(path_to_cfg = 'configs/my_configs/kappa_100.cfg' )
+    main(path_to_cfg = 'configs/my_configs/kappa_100000.cfg' )
