@@ -158,7 +158,7 @@ def plot_learning_curves(results, out_prefix='learning_curves'):
 
 
 def main():
-    log_file = 'searchs\\kappa_10\\kappa_10_train.log'  # <-- замените на путь к вашему логу
+    log_file = 'searchs\\kappa_50_3_ops\\kappa_50_3_ops_train.log'  # <-- замените на путь к вашему логу
     results = parse_log_file(log_file)
     plot_learning_curves(results, out_prefix='learning_curves')
 

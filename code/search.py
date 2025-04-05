@@ -185,6 +185,8 @@ def train(train_loader, valid_loader, model, epoch, writer,  config, logger):
 
     logger.info(
         "Train: [{:2d}/{}] Final Prec@1 {:.4%}".format(epoch+1, config.epochs, top1.avg))
+    logger.info(
+        "Train: [{:2d}/{}] Final Loss {:.4}".format(epoch+1, config.epochs, losses.avg))
     if config.quality == 'negloss':
         return -losses.avg
     elif config.quality == 'top1':
@@ -220,6 +222,8 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
     logger.info(
         "Valid: [{:2d}/{}] Final Prec@1 {:.4%}".format(epoch+1, config.epochs, top1.avg))
+    logger.info(
+        "Valid: [{:2d}/{}] Final Loss {:.4}".format(epoch+1, config.epochs, losses.avg))
 
     if config.quality == 'negloss':
         return -losses.avg
@@ -230,4 +234,4 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
 
 if __name__ == "__main__":
-    main(path_to_cfg = 'configs/my_configs/kappa_100000.cfg' )
+    main(path_to_cfg = 'configs/my_configs/kappa_50_3_ops_more_steps.cfg' )

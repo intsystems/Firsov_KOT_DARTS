@@ -189,7 +189,12 @@ class SearchCNNController(nn.Module):
                 'sep_conv_3x3',
                 'none'
             ]
-            
+        elif subcfg['primitives'] == 'DARTS_small':
+            primitives = [
+                'avg_pool_3x3',
+                'skip_connect',  # identity
+                'sep_conv_3x3',
+            ]
         else:
             raise ValueError('Incorrect value for primitives')
         return primitives
