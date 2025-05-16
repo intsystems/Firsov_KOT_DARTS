@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.png
+# *.png
 code/data
 searchs
 # C extensions
