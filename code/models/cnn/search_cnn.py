@@ -189,7 +189,12 @@ class SearchCNNController(nn.Module):
                 'sep_conv_3x3',
                 'none'
             ]
-            
+        elif subcfg['primitives'] == 'DARTS_small':
+            primitives = [
+                'avg_pool_3x3',
+                'skip_connect',  # identity
+                'sep_conv_3x3',
+            ]
         else:
             raise ValueError('Incorrect value for primitives')
         return primitives
@@ -352,7 +357,7 @@ class SearchCNNController(nn.Module):
                 alpha = F.softmax(alpha)
                 w_normal.append((torch.argmax(alpha, 1).cpu().detach().numpy()).tolist())    
         else:
-            raise NotImplemntedError('Unknown genotype extraction mode:'+mode)
+            raise NotImplementedError('Unknown genotype extraction mode:'+mode)
         return w_reduce, w_normal
 
 
