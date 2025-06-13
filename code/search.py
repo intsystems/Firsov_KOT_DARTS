@@ -234,6 +234,7 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
 
 if __name__ == "__main__":
-    main(path_to_cfg = 'configs/my_cifar/cifar_fine_0.cfg' )
-    # main(path_to_cfg = 'configs/my_cifar/cifar_hyper.cfg' )
+    # main(path_to_cfg = 'configs/my_cifar/cifar_fine_0.cfg' )
+    main(path_to_cfg = 'configs/fmnist_5_ops/kappa_50.cfg' )
     # main(path_to_cfg = 'configs/my_configs/kappa_50_3_ops_more_steps.cfg' )
+    # {'avg_pool_3x3': 0, 'skip_connect': 1, 'sep_conv_3x3': 2}
