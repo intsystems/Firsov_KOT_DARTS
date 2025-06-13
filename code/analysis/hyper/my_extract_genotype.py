@@ -46,6 +46,19 @@ if __name__=='__main__':
 		[[100,100,1],'100,100,1 штраф кроме свёртки'],
 
 	]
+	l_vectors = [
+		[[1,1,1,1,1], 'одинак'],
+		[[1,1,1,5,5], ' штраф за свёртку'],
+		[[1, 1, 5, 1,1],'штраф за ident'],
+		[[5,5,1,1,1],'штраф за пулинг'],
+		[[1,1,1,5,1], ' штраф за одну свёртку'],
+		[[1, 1, 1, 1,5],'штраф за другую свёртку'],
+		[[5,1,1,1,1],'штраф за один пулинг'],
+		[[1,5,1,1,1],'штраф за другой пулинг'],
+
+
+	]
+	# {'avg_pool_3x3': 0, 'max_pool_3x3': 1, 'skip_connect': 2, 'sep_conv_3x3': 3, 'sep_conv_5x5': 4}
 	# [[ 1 , 1 , 3 , {'avg_pool_3x3': 0, 'skip_connect': 1, 'sep_conv_3x3': 2}
      
 	# {'max_pool_3x3': 0, 'avg_pool_3x3': 1, 'skip_connect': 2, 'sep_conv_3x3': 3, 'sep_conv_5x5': 4, 'dil_conv_3x3': 5, 'dil_conv_5x5': 6, 'none': 7}
@@ -57,9 +70,9 @@ if __name__=='__main__':
         # kappa_10
 		kappa = '50_3_ops'# 10 # 100, 1000, 10000 , 100000, 5_again
 		
-		path_to_cfg =  f'./configs/my_configs/kappa_{kappa}.cfg'
-		path_to_checkpoint =  f'./searchs/kappa_{kappa}/checkpoint_0_9.ckp'
-		path_to_save = f'./searchs/kappa_{kappa}/genotype'
+		path_to_cfg =  './configs/fmnist_5_ops/kappa_50.cfg'
+		path_to_checkpoint =  f'./searchs/5_ops_kappa_50/checkpoint_0_19.ckp'
+		path_to_save = f'./searchs/5_ops_kappa_50/genotype'
 
 		config = configobj.ConfigObj(path_to_cfg)
 		config['device'] = 'cpu'

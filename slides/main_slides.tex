@@ -3,21 +3,52 @@
 \usecolortheme{beaver}
 \setbeamertemplate{blocks}[rounded=true, shadow=true]
 \setbeamertemplate{footline}[page number]
+\setbeamertemplate{caption}[numbered]    % ← номер
+\setbeamertemplate{caption label separator}{.\ } 
+
+%\usetheme{moloch}% modern fork of the metropolis theme
+
+
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath,amssymb}
 \usepackage{hyperref}
-\usepackage{biblatex}
+
+%%%%%%%%%%%
+
+\usepackage{csquotes}
+% === компактный стиль литературы ===
+\usepackage[
+  backend=biber,
+  style=numeric-comp,   % числовой стиль → одна строка
+  sorting=none,         % порядок как в .bib
+  maxbibnames=3,        % «И др.» вместо всех авторов
+  giveninits=true       % инициалы вместо имён
+]{biblatex}
+
 \addbibresource{sample.bib}
+
+% убираем URL/DOI/издателя – меньше строк
+\AtEveryBibitem{%
+  \clearfield{url}
+  \clearfield{doi}
+  \clearfield{urldate}
+  \clearlist{publisher}
+}
+
 \usepackage{array}
 \usepackage{changepage}
 \usepackage{caption}
 \usepackage[T2A]{fontenc}
 \usepackage[russian]{babel}
+
+
+\usepackage{amsthm}
+
 % Title Page Information
-\title{Выбор оптимальной структуры модели глубокого обучения с контролем эксплуатационных характеристик}
-\author{Фирсов Сергей }
+\title{Оптимизация архитектуры нейросети с контролем эксплуатационных характеристик на целевом устройстве}
+\author{Фирсов Сергей \\ \vspace{5pt} Научный руководитель: к.ф.-м.н. О.Ю. Бахтеев}
 \institute{Московский физико-технический институт}
-\date{2024}
+\date{2025}
 
 \begin{document}
 
@@ -27,14 +58,21 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{frame}{Цель исследования: }
+\begin{frame}{Цель исследования}
 
 \begin{itemize}
-    \small
+
     \item \textbf{Neural Architecture Search:} 
-    Метод автоматизированного поиска оптимальной архитектуры нейросети. 
+    Задача автоматизированного поиска оптимальной архитектуры нейросети. 
+
+    \vspace{10pt}
+    
     \item \textbf{Цель:} 
     Получать архитектуры решающие поставленную ML задачу, при этом удовлетворяя вычислительным или ресурсным ограничениям.
+    
+    \vspace{10pt}
+
+    
     \item \textbf{Проблемы:} % Challenges Проблемы //// 
     \begin{itemize}
         \footnotesize
@@ -44,145 +82,221 @@
     \end{itemize}
     \end{itemize}
  
-    \begin{figure}
-        \centering
-        \includegraphics[width=0.5\linewidth]{Cells_DARTS_1_1.png}
-        \caption*{Иллюстрация клетки из метода DARTS}
-       
-    \end{figure}
-    
+\end{frame}
 
-\end{frame} % 1 мин
-
-% Здравствуйте, меня зовут Фирсов Сергей и я представляю Вам свою  работу на тему Выбор оптимальной структуры модели глубокого обучения с контролем эксплуатационных характеристик
-% Объектом исследования является семейство методов NAS. Это  Методы автоматизированного поиска оптимальной архитектуры нейросети. 
-% Наша задача ------- научиться получать архитектуры моделей \\ не только решающие поставленную задачу \\  но и удовлетворяющие поставленным вычислительным или ресурстным ограничениям
-% Здесь можно выдвинуть несколько проблем \\
-% Количество возможных архитектур растет !экспоненциально! по мере усложнения модели. \\
-% Необходимо сбалансировать точность, сложностью и эффективностью модели на целевом оборудовании.
-% Кроме того есть желаемое требование \\ получение в процессе обучения !семейства! решений зависящих от параметра сложности
-% На рисунке иллюстрация взятого за основу метода DARTS, \\ в нём модель состоит из блоков, называемых клетками.\\ Каждая клетка содержит несколько вершин, отражающих состояния \\\\ и рёбер - отвечающих за возможные операции. \\ В процессе обучения происходит сэмплирование параметра сложности, по которому строятся архитектуры и обучаются веса,\\ дальше выбираются наиболее вероятные рёбра
-
-% формализованная постановка задачи и предлагаемого метода представлена на слайде
-% Хочу обратить внимание то что архитектурные параметры α мы предлагаем представить как функцию от параметра сложности S, \\ а этот параметр сложности \ вместо скалярного \ сделаем векторным, размерности количества операций \\ из соответствующего симплекса
-
-% Итоговая задача оптимизации ставится как минимизация данного функционала: Мы сэмплируем вектора сложности,\ по которым строятся гиперсети генерирующие архитектуры. Они обучаются за счёт функции потерь задачи и регуляризационного члена 
-% Кроме того добавим регуляризационный член, \\ позволяющий контролировать эксплуатационные характеристики
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}{Постановка задачи} % == предлагаемый метод
 \begin{itemize}
-    \item Модель --- отображение $\mathbb{X} \times \Gamma \times \mathbb{W} \to \mathbb{Y}$, где $\gamma \in \Gamma$ задает вычислительный граф модели. 
-    \item Будем задавать $\gamma \sim \textbf{GS}(\boldsymbol{\alpha}(\boldsymbol{S}, \boldsymbol{a}), t)$, а  архитектурные параметры \(\boldsymbol{\alpha}\) представим как функцию от \textbf{векторного} параметра сложности $ \boldsymbol{S}$ в пространство архитектур \(  \Gamma \):
-    \[
-    \boldsymbol{\alpha}: (\boldsymbol{S},\boldsymbol{a}) \to \Gamma, 
-    \]
-    где $ \boldsymbol{S} \in \Delta^{k-1}$ ---  \((k-1)\)-размерный симплекс,  \(k\) это количество операций, а \(\boldsymbol{a} \in \mathbb{R}^n\) --- параметры гиперсети. 
-     
+
+    \item Многоклассовая классификация. Выборка $
+    \mathfrak D = \{(\boldsymbol{x}_i, y_i)\}_{i=1}^{\mathcal N},
+    \ \boldsymbol{x_i} \in \mathbf X,\; y_i \in \mathbf Y. $
+
+    \vspace{10pt}
     
-    \item \textbf{Оптимизационная задача:} минимизация функционала
-    \begin{adjustwidth}{-1cm}{0cm} 
-    $$\mathbb{E}_{\boldsymbol{S}\sim \boldsymbol{U}(\Delta^{k-1}) } \mathbb{E}_{\gamma\sim \textbf{GS} (\boldsymbol{\alpha}(\boldsymbol{S}, \boldsymbol{a}),t) }  \big[L(\boldsymbol{w}^*, \boldsymbol{\alpha}(\boldsymbol{S},\boldsymbol{a})) + \kappa \cdot \text{Lat}(\boldsymbol{\alpha}(\boldsymbol{S},\boldsymbol{a})))\big] \to \min\limits_{w,\boldsymbol{a}},
-    $$\\
-    где $\text{Lat}(\boldsymbol{\alpha}(\boldsymbol{S}, \boldsymbol{a})))$ --- регуляризационный член отвечающий за сложность модели и задержку выполнения операций
-    \end{adjustwidth}
+    \item Модель --- нейронная сеть из повторяющихся блоков, каждый из которых представляется в виде DAG. Задача выбирать рёбра-операции $\boldsymbol{o}^{(m)}$ для каждой пары вершин в блоке. 
+    
+    \vspace{10pt}
+    
+    \item Для релаксации дискретной задачи выбора архитектуры в непрерывную, вводится \textit{смешанная операция}
+    
+    $$\hspace{-20pt}
+    \widehat{\boldsymbol{g}}^{(i,j)}(\boldsymbol x) 
+    \;=\; 
+    \sum_{m=1}^k 
+    \gamma^{(i,j)}_m \,\boldsymbol{o}^{(m)}(\boldsymbol x),
+\ \ 
+    \boldsymbol{\gamma}^{(i,j)}  \sim\; 
+    \mathrm{GumbelSoftmax}\bigl(\boldsymbol{\alpha}^{(i,j)},\,t\bigr).
+$$
 \end{itemize}
 
 
     
 \end{frame}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Ещё пару слов об архитектуре решения: компоненты векторного параметра сложности можно воспринимать как коэффициенты регуляризации по соответствующим операциям. Таким образом задавая вектор с большим штрафом за пуллинг - мы ожидаем увидеть меньше таких операций в модели, 
-\begin{frame}{Архитектура решения}
-\includegraphics[width=1\linewidth]{Idea.png}
-\centering
-\small Рис. 2: Иллюстрация предлагаемого метода.
+\begin{frame}{Регуляризация сложности}
+
+
+Вводится \textit{векторный параметр сложности} $\boldsymbol{s}$, компоненты которого --- коэффициенты регуляризации по соответствующим операциям.
+$$\boldsymbol{s} \in \Delta^{k-1}, \quad
+\Delta^{k-1} \;=\; \bigl\{\,\boldsymbol{s}\in \boldsymbol R^k\mid \sum_{m=1}^k s_m = 1,\; s_m\ge0 \bigr\},$$
+где $k = |\mathcal O|$,  $ \Delta^{k-1}$ \textit{симплекс} размерности $k-1$.
+
+\vspace{10pt}
+
+Определим функцию затрат Cost архитектуры $\gamma$ на основе $\boldsymbol{s}$:
+$$Cost\bigl(\gamma;\,\boldsymbol{s}\bigr)
+    \;=\; 
+    \sum_{(i,j)\in E} \sum_{m=1}^k 
+    \gamma^{(i,j)}_m \;s_m.$$
+
+%Чем больше $s_m$, тем менее невыгодно использовать примитивную операцию $o_m$.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}{Оптимизационная задача}
+
+Для генерации архитектуры вводится гиперсеть
+$u_{\boldsymbol a}\colon \Delta^{k-1} \;\rightarrow\; \Gamma$  с параметрами $\boldsymbol a$, которая по заданному вектору сложности $\boldsymbol{s}\in\Delta^{k-1}$ порождает логиты
+$\boldsymbol{\alpha}$, тем самым определяя архитектуру модели с учётом эксплуатационных характеристик.
+
+\begin{theorem}[Фирсов, 2025] \label{th:gs_softmax}
+\vspace{-20pt}
+$$\boldsymbol\gamma(t)\sim\mathrm{GumbelSoftmax}(\boldsymbol\alpha,t),
+   \ \ \ 
+   \boldsymbol{\bar\gamma}(t)=\mathrm{Softmax}\!\bigl(\boldsymbol\alpha/t\bigr)
+               =\mathbb E\bigl[\boldsymbol\gamma(t)\bigr].$$
+Тогда
+$$\lim_{t\to 0^{+}}
+       \mathbb E\bigl[f\bigl(\boldsymbol\gamma(t)\bigr)\bigr]
+   \ \ \ = \ \ \ 
+   f\!\bigl(\,\boldsymbol{\bar\gamma}(0)\bigr).$$
+\end{theorem}
+
+\rule[0pt]{310pt}{0.5pt} %\linewidth
+\vspace{-5pt}
+$$ \hspace{-5pt}\boxed{\mathbb E_{\boldsymbol s\sim U(\Delta^{k-1})} \ \Bigl[ \ {\mathbb E_{\boldsymbol\gamma\sim\mathrm{GS}(\boldsymbol\alpha(\boldsymbol s),t)} \mathcal L_{\text{task}}(\boldsymbol w,\boldsymbol\gamma)} \ +\  \kappa\,Cost\bigl(\boldsymbol{\bar\gamma}(\boldsymbol s);\boldsymbol s\bigr) \ \Bigr] \rightarrow \min_{\boldsymbol w,\boldsymbol a}}  
+$$
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}{Иллюстрация}
+
+\begin{figure}
+        \centering
+        \includegraphics[width=1\linewidth]{Idea.png}
+        \caption{Иллюстрация предлагаемого метода.}
+       
+\end{figure}
+
 \begin{itemize}
-    \item Предлагается использовать векторный параметр сложности $\boldsymbol{S}$, компоненты которого --- коэффициенты регуляризации по соответствующим операциям
-    \item Гиперсеть на основе $\boldsymbol{S}$ генерирует архитектурные параметры для нейросети
+    \item Предлагается использовать векторный параметр сложности $\boldsymbol{s}$, компоненты которого --- коэффициенты регуляризации по соответствующим операциям.
+    \item Гиперсеть на основе $\boldsymbol{s}$ генерирует архитектурные параметры для нейросети.
 \end{itemize}
+
 \end{frame}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 
 \begin{frame}{Постановка эксперимента}
 \begin{itemize}
-    \item Цель эксперимента – проверка работоспособности предлагаемого метода, качества получаемых моделей и возможности контроля эксплуатационных характеристик.
-    \item Эксперимент проводится на выборке Fashion-MNIST.
-    \item Модель состоит из трех ячеек, в каждой по 4 вершины. 
-    \item Во время обучения температура распределения гумбель-софтмакс понижалась от 1 до 0.2. % надо ли? ещё что-то написать? количество эпох
+    \item Эксперименты поставлены для подтверждения работоспособности метода и иллюстрации его возможностей.
+    \vspace{10pt}
+    \item Представленный эксперимент проводится на выборке Fashion-MNIST.
+    \vspace{10pt}
+    \item Рассматриваются модели из 3 блоков по 4 вершины.
+    \vspace{10pt}
+    \item Параметры $\boldsymbol w$ и параметры гиперсети $\boldsymbol a$ тренировались с помощью оптимизаторов Adam. 
+    \vspace{10pt}
+    \item Температура Gumbel–Softmax линейно уменьшалась от \(t{=}1.0\) до \(t{=}0.2\) по эпохам. 
 
 \end{itemize}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{Получение моделей}
+После обучения получено семейство нейронных сетей, из которого для анализа выделяется четыре архитектуры, соответствующие приведённым ниже векторам сложности $\boldsymbol{s} = (pool, ident, conv)$. Компоненты вектора  являются штрафами за соответствующие операции.
+\[
+\text{(A) } (0.33,0.33,0.33),\quad
+\text{(B) } (0.15,0.15,0.70),
+\]
+\[
+\text{(C) } (0.70,0.15,0.15),\quad
+\text{(D) } (0.15,0.70,0.15).
+\]
+Представленные архитектуры отражают равномерный штраф за операции (А), увеличенный за свёртки (B), увеличенный за пулинг (C) и увеличенный за пропуск (D). 
 
-
-\begin{frame}[t]{Результаты}
-% на данном слайде показаны результаты работы метода и примеры трёх полученных моделей
-% В данной конфигурации \\ модели на выбор даётся всего 3 операции - ......... и соответственно рассмотрим 3 случая. Одинаковый штраф - вектор сложности  такой, увеличенный штраф за свёртки -.. или за пулинг
-% Мы можем видеть работоспособность предлагаемого метода. Когда штрафуем за пулинг - исчезают операции соответствующего типа, когда за счёртку - аналогично. 
-% Таким образом предлагаемый метод позволяет контролировать сложности модели - отражением которой считаем количество параметров или другие эксплуатационные характеристики - к примеру задержку выполнения операций. Зная что свёртка вычисляется в несколько раз дольше пулинга - можно изменив вектор сложности получить более быструю модель
-\begin{minipage}[t][0.4\textheight]{\textwidth}  
-  \begin{columns}[T, totalwidth=\textwidth]
-    \begin{column}{0.3\textwidth}
-    \centering
-    1. Одинаковый штраф\\
-    \textbf{0.33, 0.33, 0.33}\\ 
-    \includegraphics[width=\textwidth]{graf_1.png} 
-    \end{column}
-
-    \begin{column}{0.3\textwidth}
-    \centering
-    2. Увеличенный штраф за свёртки
-    \textbf{0.15,0.15,0.70}\\
-    \includegraphics[width=\textwidth]{graf_2.png}
-    \end{column}
-
-    \begin{column}{0.3\textwidth}
-    \centering
-    3. Увеличенный штраф за пулинг
-    \textbf{0.70,0.15,0.15}\\
-    \includegraphics[width=\textwidth]{graf_3.png}
-    \end{column}
-  \end{columns}
-\end{minipage}
-
-\begin{minipage}[t][0.35\textheight]{\textwidth} 
-
-  \begin{center}
-     Рис 3. Иллюстрации распределения операций в моделях
-  \end{center}
-
-
-  \begin{table}[h!]
-    \centering
-    \small
-   % \begin{tabular}{|c|c|c|c|}
-    \begin{tabular}{b{4.5cm}|b{1cm}|m{1cm}|m{1cm}||}
-    \hline
-     \textbf{Модели} & 1 & 2 & 3 \\
-    \hline
-    \hline
-    \textbf{Accuracy} &  82.5\% & 79.2\% &  85.0\% \\
-    \hline
-    \textbf{Количество параметров} & 38304 & 5120 & 143488 \\
-    \hline
-    \textbf{Количество pooling} & 12 & 17 & \textbf{0} \\
-    \hline
-    \textbf{Количество convolution} & 6 & \textbf{0} & 13 \\
-    \hline
-    \textbf{Количество identity} & 10 & 11 & 15 \\
-    \hline
-    \end{tabular}
-  \end{table}
-\end{minipage}
 
 \end{frame}
 
+\begin{frame}{Распределение операций}
 
+\begin{figure}[!ht]
+    \centering
+    % --- 1-я строка ---
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{Figure_uniform.png}\\
+        (A) равномерный штраф
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{Figure_conv_penalty.png}\\
+        (B) увеличенный за свёртки
+    \end{minipage}
+    \caption{Статистика по операциям для архитектур эксперимента 1: 
+             \textbf{(A)} равномерный штраф, 
+             \textbf{(B)} увеличенный за свёртки.
+             }
+    \label{fig2}
+\end{figure}
+    
+\end{frame}
+\begin{frame}{Распределение операций}
 
+\begin{figure}[!ht]
+    \centering
+    % --- 2-я строка ---
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{Figure_pool_penalty.png}\\
+        (C) увеличенный за пулинг
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{Figure_ident_penalty.png}\\
+        (D) увеличенный за пропуск
+    \end{minipage}
+
+    \caption{Статистика по операциям для архитектур эксперимента 1: 
+             \textbf{(C)} увеличенный за пулинг, 
+             \textbf{(D)} увеличенный за пропуск.}
+    \label{fig3}
+\end{figure}
+    
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]{Результаты}
+  \begin{table}[h!]
+  
+    \centering
+    \small
+   % \begin{tabular}{|c|c|c|c|}
+    \begin{tabular}{b{4.5cm}|b{1.2cm}|m{1.2cm}|m{1.2cm}|m{1.2cm}||}
+    \hline
+     \textbf{Модели} & \textbf{A} & \textbf{B} & \textbf{C} & \textbf{D} \\
+    \hline
+    \hline
+    \textbf{Accuracy} &  82.5\% & 79.2\% &  \textbf{85.0\%} & 81.4\\
+    \hline
+    \textbf{Количество параметров} & 38\,304 & \textbf{5\,120} & \textbf{143\,488} &12\,320 \\
+    \hline
+    \textbf{Количество pooling} & 12 & 17 & \textbf{0} &18\\
+    \hline
+    \textbf{Количество convolution} & 6 & \textbf{0} & 13& 9 \\
+    \hline
+    \textbf{Количество identity} & 10 & 11 & 15 & \textbf{1} \\
+    \hline
+    \end{tabular}
+     \caption{Сравнение параметров полученных архитектур. \textbf{(A)} равномерный штраф, 
+             \textbf{(B)} увеличенный за свёртки, 
+             \textbf{(C)} увеличенный за пулинг, 
+             \textbf{(D)} увеличенный за пропуск.}
+  \end{table}
+
+    Результаты экспериментов подтверждают корректность работы предлагаемого метода. Заметим, что при увеличении штрафа за операцию --- уменьшается её использование в модели. Такая регуляризация позволяет учитывать различные эксплуатационные ограничения без необходимости дообучения модели на них.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}{Результаты}
 \begin{itemize}
@@ -190,16 +304,98 @@
     \item Метод обладает возможностью получать архитектуры моделей за счёт изменения вектора параметра сложности без необходимости дополнительного дообучения.
     \item Вычислительные эксперименты подтверждают работоспособность метода и демонстрируют заявленную гибкость получаемого решения.
 \end{itemize}
+
+\vspace{10pt}
+Результаты работы доложены на конференции МФТИ и в университете Сириус.
+
+В рамках дальнейшего развития метода планируется добавление многокритериального учета сложности и проведение полноформатного сопоставления результатов с классическими NAS-подходами.
+
 \end{frame}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{frame}[allowframebreaks]{References}
-    \tiny
-    \nocite{*}
-    \printbibliography
+
+\begin{frame}[t]{Список литературы}
+  \tiny
+  \nocite{*}                 % напечатать ВСЁ из .bib
+  \printbibliography
 \end{frame}
-% ------------------------------------------------------------
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\begin{frame}{Примечание. Клетка}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth]{Cells_DARTS_1_1.png}
+        \caption{Иллюстрация клетки.}
+       
+    \end{figure}
+\end{frame}
+\begin{frame}{Примечание. Гиперсеть}
+     Введём \textit{гиперсеть} $\boldsymbol{u}_{\boldsymbol a}$ с параметрами $\boldsymbol a$, которая на основе $\boldsymbol{s}$ строит логиты $\boldsymbol\alpha^{(i,j)}$ для каждого ребра $(i,j)$ как взвешенную комбинацию заранее выученных логитов опорных архитектур $\boldsymbol\alpha_{\text{ref},r}^{(i,j)}$, полученных в процессе оптимизации гиперсети. По вектору сложности $\boldsymbol{s}$ вычисляются веса интерполяции
+
+$$
+  w_r(\boldsymbol{s})
+  =  
+  \frac{\exp\bigl(-\|\boldsymbol{s} - \boldsymbol{s}_{\text{ref},r}\|^2\bigr)}
+       {\displaystyle\sum_{l=1}^{m}\exp\bigl(-\|\boldsymbol{s} - \boldsymbol{s}_{\text{ref},l}\|^2\bigr)},
+  \quad
+  r = 1,\dots,m,
+$$
+
+где $\boldsymbol{s}_{\text{ref},r}\in\Delta^{k-1}$ — $r$-я опорная точка, а $m$ — их общее число. Затем итоговые логиты для ребра $(i,j)$ вычисляются как
+
+$$
+  \boldsymbol\alpha^{(i,j)}(\boldsymbol{s})
+  \;=\;
+  \sum_{r=1}^{m} w_r(\boldsymbol{s})\;\boldsymbol\alpha_{\text{ref},r}^{(i,j)}.
+$$
+\end{frame}
+
+\begin{frame}{Примечание.  Теорема}
+\small
+\textit{Стохастическое порождение $\gamma\sim GS$ вносит высокую дисперсию градиентов, особенно при малой температуре $t$. Так как математическое ожидание GS-вектора совпадает с обычным Softmax $\hat\gamma = \mathbb E[\gamma] = Softmax(\alpha/t)$, можно безопасно подменить $\gamma$ на $\hat\gamma$ в Cost части функции потерь, где важна стабильность. Формальную корректность такой подмены устанавливает следующая теорема.}
+
+\begin{theorem}[Фирсов, 2025]
+Пусть для каждого набора весов $\boldsymbol w\in\mathbb R^n$
+и любого входа $\boldsymbol x\in\mathcal X$ функция
+$$f(\boldsymbol\gamma)
+   \;=\;
+   \mathcal L_{\mathrm{task}}\!\bigl(\boldsymbol w,\boldsymbol\gamma\bigr)
+    \ + \ \  \kappa\,\langle\boldsymbol\gamma,\boldsymbol s\rangle,
+    \ \ \ \ \ \ \boldsymbol s\in\Delta^{k-1},$$
+непрерывна и ограничена на симплексе
+$\Delta^{k-1}
+  =\bigl\{\boldsymbol\gamma\in\mathbb R^{k}\mid\sum_{i=1}^{k}\gamma_i=1,\;
+          \gamma_i\ge 0\bigr\}$.
+Положим
+$$\boldsymbol\gamma(t)\sim\mathrm{GumbelSoftmax}(\boldsymbol\alpha,t),
+   \qquad
+   \boldsymbol{\bar\gamma}(t)=\mathrm{Softmax}\!\bigl(\boldsymbol\alpha/t\bigr)
+               =\mathbb E\bigl[\boldsymbol\gamma(t)\bigr].$$
+Тогда
+$$\lim_{t\to 0^{+}}
+       \mathbb E\bigl[f\bigl(\boldsymbol\gamma(t)\bigr)\bigr]
+   \ \ \ = \ \ \ 
+   f\!\bigl(\,\boldsymbol{\bar\gamma}(0)\bigr).$$
+\end{theorem}
+
+\end{frame}
+\begin{frame}{Примечание. Оптимизационная задача}
+    
+$$
+\mathbb E_{\boldsymbol s\sim U(\Delta^{k-1})} \ \Bigl[ \ {\mathbb E_{\boldsymbol\gamma\sim\mathrm{GS}(\boldsymbol\alpha(\boldsymbol s),t)} \mathcal L_{\text{task}}(\boldsymbol w,\boldsymbol\gamma)} \ +\  \kappa\,Cost\bigl(\boldsymbol{\bar\gamma}(\boldsymbol s);\boldsymbol s\bigr) \ \Bigr] \rightarrow \min_{\boldsymbol w,\boldsymbol a} \ , 
+$$
+где $\boldsymbol w$ --- все параметры внутри примитивных операций $\mathbf{o}^{(m)}$;
+$\boldsymbol a$ --- параметры гиперсети $\boldsymbol{u}_{\boldsymbol a}$, которая генерирует логиты $\boldsymbol\alpha^{(i,j)}$ для всех $(i,j)\in E$ при подстановке $\boldsymbol{s}$;
+$\boldsymbol{s} = (\boldsymbol{s}\_1,\dots,\boldsymbol{s}\_k)\in\Delta^{k-1}$ --- вектор сложности, порождённый из равномерного распределения на симплексе $\Delta$;
+$\mathcal L_{\text{task}}$ --- кросс-энтропия по обучающей выборке;
+$\boldsymbol\gamma^{(i,j)}(\boldsymbol{s})$ --- веса операций на ребре $(i,j)$, получаемые через Gumbel‐Softmax от логитов $\boldsymbol{u}_{\boldsymbol a}^{(i,j)}(\boldsymbol{s})$; 
+$\boldsymbol\gamma$ --- вектор состоящий из $\boldsymbol\gamma^{(i,j)}$;
+$\boldsymbol{\bar\gamma} = \mathbb E[\boldsymbol{\gamma}(t)]$; 
+$Cost$ --- штраф за использование дорогих операций;
+$\kappa$ --- гиперпараметр, управляющий важностью штрафа.
+
+\end{frame}
 \end{document}
 

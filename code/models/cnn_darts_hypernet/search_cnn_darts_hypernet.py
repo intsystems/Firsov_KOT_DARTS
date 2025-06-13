@@ -42,7 +42,7 @@ class HyperLinear(nn.Module):
     def __init__(self, size, kernel_num):
         nn.Module.__init__(self)
         self.weight = Hypernet2(size, kernel_num)
-        self.bias = Hypernet2(size[1], kernel_num)
+        self.bias = Hypernet2(size[1], kernel_num)  # size[1] is the output dimension, там перепутано в  SearchCNNWithHyperNet self.linear
     
     def forward(self, x, lam):
         weight = self.weight(lam).float()
@@ -50,61 +50,61 @@ class HyperLinear(nn.Module):
         res =  torch.matmul(x, weight) + bias         
         return res
         
-class PWNet(nn.Module):
-    def __init__(self, size, kernel_num,  init_ = 'random'):    
-        nn.Module.__init__(self)
+# class PWNet(nn.Module):
+#     def __init__(self, size, kernel_num,  init_ = 'random'):    
+#         nn.Module.__init__(self)
         
-        if not isinstance(size, tuple): # check if size is 1d
-            size = (size,)
+#         if not isinstance(size, tuple): # check if size is 1d
+#             size = (size,)
             
-        self.size = size
+#         self.size = size
         
         
-        full_param_size = np.prod(self.size)        
-        total_size = [kernel_num]+list(self.size)
-        self.kernel_num = kernel_num  
+#         full_param_size = np.prod(self.size)        
+#         total_size = [kernel_num]+list(self.size)
+#         self.kernel_num = kernel_num  
         
-        #self.const = nn.Parameter(t.randn(size))
+#         #self.const = nn.Parameter(t.randn(size))
         
         
-        self.const = nn.Parameter(torch.randn(total_size, dtype=torch.float32))
-        if init_ == 'random':
+#         self.const = nn.Parameter(torch.randn(total_size, dtype=torch.float32))
+#         if init_ == 'random':
             
-            for i in range(kernel_num):
-                if len(self.size)>1:
-                    init.kaiming_uniform_(self.const.data[i], a= np.sqrt(5))
-                else:
+#             for i in range(kernel_num):
+#                 if len(self.size)>1:
+#                     init.kaiming_uniform_(self.const.data[i], a= np.sqrt(5))
+#                 else:
                 
-                    self.const.data[i]*=0
-                    self.const.data[i]+=torch.randn(size)
+#                     self.const.data[i]*=0
+#                     self.const.data[i]+=torch.randn(size)
                 
-        else:
-            self.const.data *=0
-            self.const.data += init_              
-        self.pivots = nn.Parameter(torch.tensor(np.linspace(0, 1,kernel_num)), requires_grad=True)
+#         else:
+#             self.const.data *=0
+#             self.const.data += init_              
+#         self.pivots = nn.Parameter(torch.tensor(np.linspace(0, 1,kernel_num)), requires_grad=True)
         
             
-    def forward(self, lam):   
-        lam_ = lam * 0.99999
-        left = torch.floor(lam_*(self.kernel_num-1)).long() 
-        right = left + 1      
-        dist = (self.pivots[right]-lam_)/(self.pivots[right]-self.pivots[left])
-        res = self.const[left] * (dist) + (1.0-dist) * self.const[right]
+#     def forward(self, lam):   
+#         lam_ = lam * 0.99999
+#         left = torch.floor(lam_*(self.kernel_num-1)).long() 
+#         right = left + 1      
+#         dist = (self.pivots[right]-lam_)/(self.pivots[right]-self.pivots[left])
+#         res = self.const[left] * (dist) + (1.0-dist) * self.const[right]
         
-        return res
+#         return res
 
 
-class PWLinear(nn.Module):
-    def __init__(self, size, kernel_num):
-        nn.Module.__init__(self)
-        self.weight = PWNet(size, kernel_num)
-        self.bias = PWNet(size[1], kernel_num)
+# class PWLinear(nn.Module):
+#     def __init__(self, size, kernel_num):
+#         nn.Module.__init__(self)
+#         self.weight = PWNet(size, kernel_num)
+#         self.bias = PWNet(size[1], kernel_num)
     
-    def forward(self, x, lam):
-        weight = self.weight(lam).float()
-        bias = self.bias(lam).float()
-        res =  torch.matmul(x, weight) + bias         
-        return res
+#     def forward(self, x, lam):
+#         weight = self.weight(lam).float()
+#         bias = self.bias(lam).float()
+#         res =  torch.matmul(x, weight) + bias         
+#         return res
         
 
 class HyperNet(nn.Module):
@@ -142,7 +142,7 @@ class SearchCNNWithHyperNet(SearchCNN):
     def __init__(self, kernel_num, primitives,  C_in, C, n_classes, n_layers, n_nodes=4, stem_multiplier=3):
         SearchCNN.__init__(self, primitives,  C_in, C, n_classes, n_layers, n_nodes, stem_multiplier)
         #self.linear = Hypernet2(, kernel_num)
-        self.linear = HyperLinear((self.linear.weight.shape[1], self.linear.weight.shape[0]), kernel_num)
+        self.linear = HyperLinear((self.linear.weight.shape[1], self.linear.weight.shape[0]), kernel_num)  # перепутан порядок, надо [0],[1] для понятности
         
         
     
