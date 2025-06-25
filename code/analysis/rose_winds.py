@@ -47,7 +47,7 @@ def plot_ops_radar(ops: Dict[str, int],
 
     # --- концентрические пунктирные кольца ----------------------------------
     # шаг кольца = 1, можно изменить при желании
-    for r in range(1, max_count + 1):
+    for r in range(1, max_count + 1, 3):
         ax.plot(np.linspace(0, 2 * np.pi, 360),
                 [r] * 360,
                 linestyle=":",
@@ -56,7 +56,7 @@ def plot_ops_radar(ops: Dict[str, int],
 
         # подпись уровня (расположена сверху)
         ax.text(np.pi / 2, r, f"{r}", va="center", ha="center",
-                fontsize=11, color=grid_color, alpha=.9)
+                fontsize=19, color=grid_color, alpha=.9)
 
     # --- рисуем многоугольник ----------------------------------------------
     ax.plot(angles, values, color=edge_color, linewidth=2)
@@ -74,7 +74,7 @@ def plot_ops_radar(ops: Dict[str, int],
                 name,
                 ha="center",
                 va="center",
-                fontsize=10,
+                fontsize=24,
                 # rotation=angle_deg,
                 rotation_mode="anchor")
 
