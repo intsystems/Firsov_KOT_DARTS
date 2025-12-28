@@ -23,7 +23,7 @@ def broadcast_list(l, device_ids):
 class SearchCNN(nn.Module):
     """ Search CNN model """
 
-    def __init__(self, primitives,  C_in, C, n_classes, n_layers, n_nodes=4, stem_multiplier=3, drop=0.0):
+    def __init__(self, primitives,  C_in, C, n_classes, n_layers, n_nodes=4, stem_multiplier=3, drop=0.0, latency_manager=None):
         """
         Args:
             C_in: # of input channels
@@ -38,6 +38,7 @@ class SearchCNN(nn.Module):
         self.C = C
         self.n_classes = n_classes
         self.n_layers = n_layers
+        self.latency_manager = latency_manager
 
         C_cur = stem_multiplier * C
         self.stem = nn.Sequential(
@@ -45,14 +46,11 @@ class SearchCNN(nn.Module):
             nn.BatchNorm2d(C_cur)
         )
 
-        # for the first cell, stem is used for both s0 and s1
-        # [!] C_pp and C_p is output channel size, but C_cur is input channel size.
         C_pp, C_p, C_cur = C_cur, C_cur, C
 
         self.cells = nn.ModuleList()
         reduction_p = False
         for i in range(n_layers):
-            # Reduce featuremap size and double channels in 1/3 and 2/3 layer.
             if i in [n_layers//3, 2*n_layers//3]:
                 C_cur *= 2
                 reduction = True
@@ -60,7 +58,7 @@ class SearchCNN(nn.Module):
                 reduction = False
 
             cell = SearchCell(n_nodes,   C_pp, C_p, C_cur,
-                              reduction_p, reduction, primitives, drop)
+                              reduction_p, reduction, primitives, drop, latency_manager=self.latency_manager)
             reduction_p = reduction
             self.cells.append(cell)
             C_cur_out = C_cur * n_nodes
@@ -87,8 +85,6 @@ class SearchCNNController(nn.Module):
 
     def init_net(self, kwargs):
         subcfg = kwargs['darts']
-        #self.drop_init = float(subcfg['drop path proba initial'])
-        #self.drop_delta = float(subcfg['drop path proba delta'])
 
         C_in = int(subcfg['input_channels'])
         C = int(subcfg['init_channels'])
@@ -98,11 +94,6 @@ class SearchCNNController(nn.Module):
         stem_multiplier = int(subcfg['stem_multiplier'])
         
         primitives = self.get_primitives(kwargs)
-        #if self.drop_init > 0 or self.drop_delta != 0:
-        #    self.drop = torch.tensor(0.0001) # need to initialize cells properly
-        #else:
-        #    self.drop = 0.0
-          
         self.net = SearchCNN(primitives, C_in, C, n_classes, n_layers,
                              n_nodes, stem_multiplier)
                              

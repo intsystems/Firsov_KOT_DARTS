@@ -8,7 +8,7 @@ class SearchCell(nn.Module):
     """ Cell for search
     Each edge is mixed and continuous relaxed.
     """
-    def __init__(self, n_nodes, C_pp, C_p, C, reduction_p, reduction, primitives, drop=0.0):
+    def __init__(self, n_nodes, C_pp, C_p, C, reduction_p, reduction, primitives, drop=0.0, latency_manager=None):
         """
         Args:
             n_nodes: # of intermediate n_nodes
@@ -21,21 +21,18 @@ class SearchCell(nn.Module):
         super().__init__()
         self.reduction = reduction
         self.n_nodes = n_nodes
+        self.latency_manager = latency_manager
 
-        # If previous cell is reduction cell, current input size does not match with
-        # output size of cell[k-2]. So the output[k-2] should be reduced by preprocessing.
         if reduction_p:
             self.preproc0 = ops.FactorizedReduce(C_pp, C, affine=False)
         else:
             self.preproc0 = ops.StdConv(C_pp, C, 1, 1, 0, affine=False)
         self.preproc1 = ops.StdConv(C_p, C, 1, 1, 0, affine=False)
 
-        # generate dag
         self.dag = nn.ModuleList()
         for i in range(self.n_nodes):
             self.dag.append(nn.ModuleList())
-            for j in range(2+i): # include 2 input nodes
-                # reduction should be used only for input node
+            for j in range(2+i): 
                 stride = 2 if reduction and j < 2 else 1
                 op = ops.MixedOp(C, stride, primitives, drop)
                 self.dag[i].append(op)
@@ -48,9 +45,20 @@ class SearchCell(nn.Module):
         
         
         for edges, w_list in zip(self.dag, w_dag):
-            # checking for one-hot mode
             if not isinstance(w_list, list) and len(w_list.shape) == 3:
                 w_list = w_list.permute(1,2,0)
+            if self.latency_manager is not None:
+                for i, (s, _) in enumerate(zip(states, w_list)):
+                    dummy_input = s.new_zeros((1, s.shape[1], s.shape[2], s.shape[3]))
+                    mixed_op = edges[i]
+                    for op in mixed_op._ops:
+                        op_name = op.name if hasattr(op, 'name') else str(op.__class__.__name__).lower()
+                        if 'zero' in op_name:
+                            op_name = 'none'
+                        try:
+                            self.latency_manager.get_or_measure_latency(op_name, op, dummy_input)
+                        except Exception:
+                            pass
             s_cur = sum(edges[i](s, w) for i, (s, w) in enumerate(zip(states, w_list)))
             states.append(s_cur)
 

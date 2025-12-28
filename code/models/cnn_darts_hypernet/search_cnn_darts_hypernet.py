@@ -11,7 +11,8 @@ from visualize import plot
 import genotypes as gt
 import logging
 import numpy as np
-from utils import get_latency_table
+from utils import LatencyManager
+import os
 import torch.nn.init as init
 SIMPLEX_D = 3
 
@@ -139,8 +140,8 @@ class HyperNet(nn.Module):
     
     
 class SearchCNNWithHyperNet(SearchCNN):
-    def __init__(self, kernel_num, primitives,  C_in, C, n_classes, n_layers, n_nodes=4, stem_multiplier=3):
-        SearchCNN.__init__(self, primitives,  C_in, C, n_classes, n_layers, n_nodes, stem_multiplier)
+    def __init__(self, kernel_num, primitives,  C_in, C, n_classes, n_layers, n_nodes=4, stem_multiplier=3, latency_manager=None):
+        SearchCNN.__init__(self, primitives,  C_in, C, n_classes, n_layers, n_nodes, stem_multiplier, latency_manager=latency_manager)
         #self.linear = Hypernet2(, kernel_num)
         self.linear = HyperLinear((self.linear.weight.shape[1], self.linear.weight.shape[0]), kernel_num)  # перепутан порядок, надо [0],[1] для понятности
         
@@ -194,8 +195,11 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
         self.kernel_num = int(self.lam_log_max - self.lam_log_min) + 1
         
         self.init_alphas(kwargs)
+        # Latency manager with per-run lookup file
+        lookup_path = os.path.join(kwargs['path'], 'latency_lookup.json') if 'path' in kwargs else 'latency_lookup.json'
+        self.latency_manager = LatencyManager(device=self.device, lookup_path=lookup_path)
         self.net = SearchCNNWithHyperNet(self.kernel_num, primitives, C_in, C, n_classes, n_layers,
-                             n_nodes, stem_multiplier)
+                             n_nodes, stem_multiplier, latency_manager=self.latency_manager)
         ##########
         # return of 2 optimizers
         self.w_optim = torch.optim.SGD(self.weights(), 
@@ -298,36 +302,42 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
     def hyperloss(self, X, y, lam):
         logits = self.forward(X, lam)
         penalty = 0
-        latency_loss = 0.0
+        latency_loss = torch.tensor(0.0, device=self.device)
+        H, W = X.shape[2], X.shape[3]
+        C_cur = self.net.C
         for id, cell in enumerate(self.net.cells):
-            # можно не пробегать несколько раз, т.к. клетки одинаковы (С точностью до normal и reduce)            
-            
+            if cell.reduction:
+                C_cur *= 2
+                H = max(1, H // 2)
+                W = max(1, W // 2)
             lam_ = self.norm_lam(lam)
             weights = [alpha(lam_) for alpha in self.hyper_reduce] if cell.reduction else [
                 alpha(lam_) for alpha in self.hyper_normal]
-            
             weights = [F.softmax(w, dim=-1) for w in weights]
-            
-            
-                
             for edges, w_list in zip(cell.dag, weights):
-                for mixed_op, weights in zip(edges, w_list):
-                    for op, w in zip(mixed_op._ops, weights):
+                for mixed_op, weights_edge in zip(edges, w_list):
+                    for op, w in zip(mixed_op._ops, weights_edge):
                         for param in op.parameters():
-                            penalty += w*np.prod(param.shape)#(torch.norm(param)**2)
+                            penalty += w*np.prod(param.shape)
                         op_name = op.name if hasattr(op, 'name') else str(op.__class__.__name__).lower()
                         if 'zero' in op_name:
                             op_name = 'none'
-                        latency_loss += w * lam[self.connect_dict[op_name]]
+                        try:
+                            dummy = torch.zeros(1, C_cur, H, W, device=self.device)
+                            lat_ms = self.latency_manager.get_or_measure_latency(op_name, op, dummy)
+                            latency_loss = latency_loss + w * torch.tensor(lat_ms, device=self.device, dtype=w.dtype)
+                        except Exception as e:
+                            print(f"Error measuring latency for {op_name}: {e}")
+                            pass
 
         total_task_loss = self.criterion(logits, y)
-        #print ('TODO FIX ?')
-
-        latency_penalty = 0.0
         latency_penalty = self.latency_kappa * latency_loss
         total_loss = total_task_loss + latency_penalty
-        print("Task loss: {:.4f}, Latency loss: {:.4f}".format(total_task_loss.item(), latency_penalty))
-    
+        try:
+            lp = latency_penalty.item() if isinstance(latency_penalty, torch.Tensor) else float(latency_penalty)
+        except Exception:
+            lp = float('nan')
+        print("Task loss: {:.4f}, Latency loss: {:.4f}".format(total_task_loss.item(), lp))
         return total_loss
 ##################################
     def train_step(self, trn_X, trn_y, val_X, val_y, lam=None):

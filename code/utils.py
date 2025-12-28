@@ -8,47 +8,7 @@ import torch
 import torchvision.datasets as dset
 import numpy as np
 import preproc
-import torch as t
 from configobj import ConfigObj
-
-
-def get_latency_table(mode):
-    if mode == 'computer':
-        return {
-            'max_pool_3x3': 1.0,
-            'avg_pool_3x3': 1.0,
-            'skip_connect': 1.0,
-            'sep_conv_3x3': 1.0,
-            'sep_conv_5x5': 1.0,
-            'dil_conv_3x3': 1.0,
-            'dil_conv_5x5': 1.0,
-            'none': 1.0,
-        }
-    elif mode == 'diff_conv':
-        return {
-            'max_pool_3x3': 1.0,
-            'avg_pool_3x3': 1.0,
-            'skip_connect': 1.0,
-            'sep_conv_3x3': 1.5,
-            'sep_conv_5x5': 1.5,
-            'dil_conv_3x3': 1.5,
-            'dil_conv_5x5': 1.5,
-            'none': 1.0,
-        }
-    elif mode == 'diff_pool':
-        return {
-            'max_pool_3x3': 1.5,
-            'avg_pool_3x3': 1.5,
-            'skip_connect': 1.0,
-            'sep_conv_3x3': 1.0,
-            'sep_conv_5x5': 1.0,
-            'dil_conv_3x3': 1.0,
-            'dil_conv_5x5': 1.0,
-            'none': 1.0,
-        }
-    else:
-        raise ValueError("Unknown latency mode: {}".format(mode))
-
           
 
 def get_data(dataset, data_path, cutout_length, validation):
@@ -64,9 +24,6 @@ def get_data(dataset, data_path, cutout_length, validation):
     elif dataset == 'fashionmnist':
         dset_cls = dset.FashionMNIST
         n_classes = 10        
-    elif dataset  == 'toy':
-         dset_cls = DsetMock
-         n_classes = 2
     else:    
         raise ValueError(dataset)
 
@@ -182,3 +139,111 @@ class Config:
         
             
         
+import time
+import torch
+import json
+import os
+
+class LatencyManager:
+    def __init__(self, device, lookup_path="latency_lookup.json"):
+        try:
+            self.device = device if isinstance(device, torch.device) else torch.device(device)
+        except Exception:
+            self.device = torch.device('cpu')
+        self.lookup_path = lookup_path
+        self.num_warmup = 5
+        self.num_repeats = 20
+
+        if os.path.exists(lookup_path):
+            with open(lookup_path, "r") as f:
+                self.latency_lookup = json.load(f)
+        else:
+            self.latency_lookup = {}
+    
+    def get_latency_key(self, op_name, C_in, C_out, H, W):
+        return f"{op_name}___Cin{C_in}___Cout{C_out}___H{H}___W{W}"
+    
+    def measure_latency(self, op, input_tensor):
+        import torch.nn.functional as F
+        op.eval()
+        
+        if input_tensor.shape[0] < 1:
+            raise ValueError(f"Input tensor batch size must be >= 1, got {input_tensor.shape[0]}")
+
+        input_tensor = input_tensor.to(self.device)
+        
+        with torch.no_grad():
+            for _ in range(self.num_warmup):
+                try:
+                    _ = op(input_tensor)
+                except RuntimeError as e:
+                    msg = str(e)
+                    if 'Sizes of tensors must match' in msg or 'size mismatch' in msg:
+                        _, _, H, W = input_tensor.shape
+                        pad_h = (H % 2)
+                        pad_w = (W % 2)
+                        if pad_h or pad_w:
+                            input_tensor = F.pad(input_tensor, (0, pad_w, 0, pad_h))
+                            _ = op(input_tensor)
+                            break
+                    print(f"[ERROR] Warmup failed for {op}: {e}")
+                    raise
+            
+            if self.device.type == 'cuda':
+                torch.cuda.synchronize()
+            
+            times = []
+            for _ in range(self.num_repeats):
+                start = time.time()
+                _ = op(input_tensor)
+                if self.device.type == 'cuda':
+                    torch.cuda.synchronize()
+                times.append(time.time() - start)
+        
+        return sum(times) / len(times)
+
+    
+    def get_op_config(self, op, input_tensor):
+        C_in = input_tensor.shape[1]
+        H, W = input_tensor.shape[2], input_tensor.shape[3]
+        
+        C_out = C_in  
+        
+        if hasattr(op, 'out_channels'):
+            C_out = op.out_channels
+        elif hasattr(op, 'net'):
+            for module in op.net.modules():
+                if isinstance(module, torch.nn.Conv2d) and hasattr(module, 'out_channels'):
+                    C_out = module.out_channels
+                    break
+                elif isinstance(module, torch.nn.BatchNorm2d) and hasattr(module, 'num_features'):
+                    C_out = module.num_features
+                    break
+        elif hasattr(op, 'stride'):
+            C_out = C_in
+        else:
+            C_out = C_in
+        
+        return C_in, C_out, H, W
+
+    
+    def get_or_measure_latency(self, op_name, op, input_tensor):
+        C_in, C_out, H, W = self.get_op_config(op, input_tensor)
+        key = self.get_latency_key(op_name, C_in, C_out, H, W)
+        
+        if key in self.latency_lookup:
+            return self.latency_lookup[key]
+        else:
+            latency_sec = self.measure_latency(op, input_tensor)
+            latency_ms = latency_sec * 1000
+
+            self.latency_lookup[key] = latency_ms
+            with open(self.lookup_path, "w") as f:
+                json.dump(self.latency_lookup, f, indent=2)
+            
+            print(f"[LATENCY] Measured {key}: {latency_ms:.3f} ms")
+            return latency_ms
+    
+    def save(self):
+        with open(self.lookup_path, "w") as f:
+            json.dump(self.latency_lookup, f, indent=2)
