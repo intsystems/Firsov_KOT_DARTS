@@ -9,7 +9,8 @@ from tensorboardX import SummaryWriter
 import utils
 from importlib import import_module
 from utils import Config
-from tqdm import tqdm
+from tqdm.auto import tqdm
+
 def main(path_to_cfg):    
     config = Config(path_to_cfg)
     device = config.device
@@ -111,7 +112,7 @@ def main(path_to_cfg):
 
         
 
-        for epoch in range(start_epoch, int(config.epochs)):
+        for epoch in tqdm(range(start_epoch, int(config.epochs))):
             # it's better to control seed if ti changes during every epoch                        
             logger.info('epoch' +str(epoch))
             logger.info('using seed '+str(seed+epoch))
@@ -266,8 +267,9 @@ def validate(valid_loader, model, epoch, cur_step, device, config, logger, write
 
 
 if __name__ == "__main__":
-    # main(path_to_cfg = 'configs/my_configs/fmnist_fine_0.cfg' )
-    # main(path_to_cfg = 'configs/my_cifar/cifar_fine_0.cfg' )
-    main(path_to_cfg = 'configs/cifar_hyper_final/cifar_hyper.cfg' )
-    # main(path_to_cfg = 'configs/my_configs/kappa_50_3_ops_more_steps.cfg' )
-    # {'avg_pool_3x3': 0, 'skip_connect': 1, 'sep_conv_3x3': 2}
+    # main(path_to_cfg = 'configs/cifar_hyper_final/cifar_hyper_all_ops_kappa_5_finetune_conv_penalty.cfg' )
+    # main(path_to_cfg = 'configs/cifar_hyper_final/cifar_hyper_all_ops_kappa_1.cfg' )
+    # main(path_to_cfg = 'configs/fmnist_final/fmnist_all_ops_kappa_50.cfg' )
+    main(path_to_cfg = 'configs/fmnist_final/fmnist_all_ops_kappa_50_finetune_pooling_penalty.cfg' )
+    
+    

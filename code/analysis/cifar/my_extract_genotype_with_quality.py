@@ -65,9 +65,9 @@ if __name__=='__main__':
 		# [[100,100,1],'100,100,1 штраф кроме свёртки'],
 
 	]
-	path_to_cfg =  f'./configs/my_cifar/cifar_hyper_my.cfg'
-	path_to_checkpoint =  f'./searchs/my_cifar_50_epoch/checkpoint_0_38.ckp' # 9  49  38
-	path_to_save = f'./searchs/my_cifar_50_epoch/genotype'
+	path_to_cfg =  f'./configs/my_cifar/cifar_hyper_five.cfg'
+	path_to_checkpoint =  f'./searchs/hyper_5_ops_new/checkpoint_0_37.ckp' # 9  49  38
+	path_to_save = f'./searchs/hyper_5_ops_new/genotype'
 
 	# [[ 1 , 1 , 3 , {'avg_pool_3x3': 0, 'skip_connect': 1, 'sep_conv_3x3': 2}
 	config = configobj.ConfigObj(path_to_cfg)

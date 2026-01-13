@@ -298,46 +298,39 @@ class SearchCNNControllerWithHyperNet(SearchCNNController):
     def norm_lam(self, lam):  
         return lam
     
-    
     def hyperloss(self, X, y, lam):
         logits = self.forward(X, lam)
         penalty = 0
-        latency_loss = torch.tensor(0.0, device=self.device)
-        H, W = X.shape[2], X.shape[3]
-        C_cur = self.net.C
+        latency_loss = 0.0
         for id, cell in enumerate(self.net.cells):
-            if cell.reduction:
-                C_cur *= 2
-                H = max(1, H // 2)
-                W = max(1, W // 2)
+            # можно не пробегать несколько раз, т.к. клетки одинаковы (С точностью до normal и reduce)            
+            
             lam_ = self.norm_lam(lam)
             weights = [alpha(lam_) for alpha in self.hyper_reduce] if cell.reduction else [
                 alpha(lam_) for alpha in self.hyper_normal]
+            
             weights = [F.softmax(w, dim=-1) for w in weights]
+            
+            
+                
             for edges, w_list in zip(cell.dag, weights):
-                for mixed_op, weights_edge in zip(edges, w_list):
-                    for op, w in zip(mixed_op._ops, weights_edge):
+                for mixed_op, weights in zip(edges, w_list):
+                    for op, w in zip(mixed_op._ops, weights):
                         for param in op.parameters():
-                            penalty += w*np.prod(param.shape)
+                            penalty += w*np.prod(param.shape)#(torch.norm(param)**2)
                         op_name = op.name if hasattr(op, 'name') else str(op.__class__.__name__).lower()
                         if 'zero' in op_name:
                             op_name = 'none'
-                        try:
-                            dummy = torch.zeros(1, C_cur, H, W, device=self.device)
-                            lat_ms = self.latency_manager.get_or_measure_latency(op_name, op, dummy)
-                            latency_loss = latency_loss + w * torch.tensor(lat_ms, device=self.device, dtype=w.dtype)
-                        except Exception as e:
-                            print(f"Error measuring latency for {op_name}: {e}")
-                            pass
+                        latency_loss += w * lam[self.connect_dict[op_name]]
 
         total_task_loss = self.criterion(logits, y)
+        #print ('TODO FIX ?')
+
+        latency_penalty = 0.0
         latency_penalty = self.latency_kappa * latency_loss
         total_loss = total_task_loss + latency_penalty
-        try:
-            lp = latency_penalty.item() if isinstance(latency_penalty, torch.Tensor) else float(latency_penalty)
-        except Exception:
-            lp = float('nan')
-        print("Task loss: {:.4f}, Latency loss: {:.4f}".format(total_task_loss.item(), lp))
+        print("Task loss: {:.4f}, Latency loss: {:.4f}".format(total_task_loss.item(), latency_penalty))
+    
         return total_loss
 ##################################
     def train_step(self, trn_X, trn_y, val_X, val_y, lam=None):
